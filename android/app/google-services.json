@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "697988632641",
+    "project_id": "smart-waste-segregation-cc790",
+    "storage_bucket": "smart-waste-segregation-cc790.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:697988632641:android:ff5fec3fc0661e0d3136c0",
+        "android_client_info": {
+          "package_name": "com.example.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCGhi9m8HtggPlXM3v-TdCAUrrgDDv17nE"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

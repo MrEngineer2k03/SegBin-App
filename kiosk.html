@@ -1,0 +1,458 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SegBin - EcoSort Kiosk</title>
+    <link rel="stylesheet" href="kiosk.css">
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+</head>
+<body>
+    <!-- Home Screen -->
+    <div id="home-screen" class="screen active">
+        <div class="animated-background" id="animated-bg"></div>
+        <div class="home-content" id="home-content">
+            <h1 class="app-title">SegBin</h1>
+            <p class="date-text" id="date-text"></p>
+            <p class="time-text" id="time-text"></p>
+            <p class="tap-text pulse" id="tap-text">Tap to continue</p>
+        </div>
+    </div>
+
+    <!-- Menu Modal -->
+    <div id="menu-modal" class="modal">
+        <div class="modal-content">
+            <h2>What would you like to do?</h2>
+            <button class="menu-btn primary" onclick="handleMenuAction('insert-trash')">Insert Trash</button>
+            <button class="menu-btn primary" onclick="handleMenuAction('how-to-use')">How to Use</button>
+            <button class="menu-btn primary" id="admin-reward-btn" onclick="handleMenuAction('admin-rewards')" style="display: none;">Manage Rewards (Admin)</button>
+            <button class="menu-btn secondary" onclick="handleMenuAction('home')">Back to Home Screen</button>
+        </div>
+    </div>
+
+    <!-- Trash Type Selection Modal -->
+    <div id="trash-type-modal" class="modal">
+        <div class="modal-content">
+            <h2>Choose Trash Type</h2>
+            <p>How would you like to throw your trash?</p>
+            <button class="menu-btn primary" onclick="handleTrashTypeAction('regular-trash')">Throw a Regular Trash</button>
+            <button class="menu-btn primary" onclick="handleTrashTypeAction('trash-with-points')">Start a Quest<br> (With available choice for rewards)</button>
+            <button class="menu-btn secondary" onclick="hideTrashTypeModal()">Cancel</button>
+        </div>
+    </div>
+
+    <!-- Regular Trash Screen -->
+    <div id="regular-trash-screen" class="screen">
+        <div class="header">
+            <button class="back-btn" onclick="goHome()">Back</button>
+            <h2>Throw Regular Trash</h2>
+            <div class="spacer"></div>
+        </div>
+        <div class="gradient-bg">
+            <div class="regular-trash-content">
+                <div class="card">
+                    <p class="card-label">Number of Trash Thrown</p>
+                    <p class="trash-count-text" id="trash-count-text">0</p>
+                </div>
+                <div class="card">
+                    <p class="card-label">Type of Trash</p>
+                    <div class="trash-type-display" id="trash-type-display">
+                        <span class="trash-type-text">No trash thrown yet</span>
+                    </div>
+                </div>
+                <div class="card">
+                    <p class="card-label">Demo Controls (Testing)</p>
+                    <div class="demo-buttons">
+                        <button class="demo-btn" onclick="addRegularTrash('plastic')">+1 Plastic Bottle</button>
+                        <button class="demo-btn" onclick="addRegularTrash('paper')">+1 Paper</button>
+                        <button class="demo-btn" onclick="addRegularTrash('single-stream')">+1 Single Stream</button>
+                        <button class="demo-btn" onclick="addRegularTrash('mixed')">+1 Mixed</button>
+                    </div>
+                </div>
+                <div class="regular-trash-actions">
+                    <button class="btn-primary" onclick="finishRegularTrash()">Done</button>
+                    <button class="btn-outline" onclick="cancelRegularTrash()">Cancel</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Insert Trash Screen -->
+    <div id="insert-trash-screen" class="screen">
+        <div class="header">
+            <button class="back-btn" onclick="goHome()">Back</button>
+            <h2>Insert Trash</h2>
+            <div class="spacer"></div>
+        </div>
+        <div class="content">
+            <h3>Choose a Quest</h3>
+            <div class="quests-grid" id="quests-grid">
+                <div style="grid-column: 1 / -1; text-align: center; padding: 60px 20px; color: #666;">
+                    <div style="font-size: 48px; margin-bottom: 16px;">📋</div>
+                    <h3 style="margin: 0 0 8px 0; color: #333;">Loading Quests...</h3>
+                    <p style="margin: 0; font-size: 16px;">Please wait while we load available quests.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Task Selection Screen -->
+    <div id="task-selection-screen" class="screen">
+        <div class="header">
+            <button class="back-btn" onclick="showInsertTrash()">Back</button>
+            <h2>Quest Selected</h2>
+            <div class="spacer"></div>
+        </div>
+        <div class="gradient-bg">
+            <div class="task-selection-content">
+                <div class="quest-icon" id="selected-quest-icon"></div>
+                <h2 id="selected-quest-title"></h2>
+                <p id="selected-quest-desc"></p>
+                <div class="reward-badge" id="selected-quest-reward"></div>
+                <div class="quest-details">
+                    <div class="detail-row">
+                        <span>Target:</span>
+                        <span id="selected-quest-target"></span>
+                    </div>
+                    <div class="detail-row">
+                        <span>Time Limit:</span>
+                        <span>20 seconds</span>
+                    </div>
+                    <div class="detail-row">
+                        <span>Reward:</span>
+                        <span id="selected-quest-reward-text"></span>
+                    </div>
+                </div>
+                <div class="quest-actions">
+                    <button class="btn-primary" onclick="startQuest()">Start Quest</button>
+                    <button class="btn-outline" onclick="showInsertTrash()">Cancel</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Active Quest Screen -->
+    <div id="active-quest-screen" class="screen">
+        <div class="gradient-bg">
+            <div class="quest-content">
+                <div class="card">
+                    <p class="card-label">Time Remaining</p>
+                    <p class="timer-text" id="timer-text">20</p>
+                </div>
+                <div class="card">
+                    <p class="progress-text" id="progress-text">0 / 0 items inserted</p>
+                    <div class="progress-bar">
+                        <div class="progress-fill" id="progress-fill"></div>
+                    </div>
+                </div>
+                <div class="card">
+                    <p class="card-label">Demo Controls (Testing)</p>
+                    <div class="demo-buttons">
+                        <button class="demo-btn" onclick="addItem('plastic')">+1 Plastic Bottle</button>
+                        <button class="demo-btn" onclick="addItem('paper')">+1 Paper</button>
+                        <button class="demo-btn" onclick="addItem('single-stream')">+1 Single Stream</button>
+                        <button class="demo-btn" onclick="addItem('mixed')">+1 Mixed</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- How to Use Screen -->
+    <div id="how-to-use-screen" class="screen">
+        <div class="header">
+            <button class="back-btn" onclick="goHome()">Back</button>
+            <h2>How to Use</h2>
+            <div class="spacer"></div>
+        </div>
+        <div class="content">
+            <div class="instruction-step">
+                <div class="step-number">1</div>
+                <div class="step-content">
+                    <h3>Choose Your Action</h3>
+                    <p>You can throw a trash or you can interact with the trashbin using the screen.</p>
+                </div>
+            </div>
+            <div class="instruction-step">
+                <div class="step-number">2</div>
+                <div class="step-content">
+                    <h3>Tap the Screen</h3>
+                    <p>Tap the screen and choose insert trash.</p>
+                </div>
+            </div>
+            <div class="instruction-step">
+                <div class="step-number">3</div>
+                <div class="step-content">
+                    <h3>Choose Your Task</h3>
+                    <p>Choose your preferred task.</p>
+                </div>
+            </div>
+            <div class="instruction-step">
+                <div class="step-number">4</div>
+                <div class="step-content">
+                    <h3>Earn Voucher</h3>
+                    <p>Earn Voucher by throwing trash!</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Printing Screen -->
+    <div id="printing-screen" class="screen">
+        <div class="gradient-bg">
+            <div class="center-content">
+                <div class="spinner"></div>
+                <h2>Printing...</h2>
+                <p>Please wait</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Thank You Screen -->
+    <div id="thank-you-screen" class="screen">
+        <div class="gradient-bg">
+            <div class="center-content">
+                <div class="success-icon">✓</div>
+                <h2>Thank You!</h2>
+                <p>Please get your voucher.</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Completion Popup -->
+    <div id="completion-popup" class="modal">
+        <div class="modal-content">
+            <h2 class="success-title">Quest Complete!</h2>
+            <p>Congratulations! You've completed your quest.</p>
+            <p class="print-question">Print my voucher?</p>
+            <div class="popup-actions">
+                <button class="btn-primary" onclick="printVoucher()">YES</button>
+                <button class="btn-secondary" onclick="hideCompletionPopup()">NO</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Reward Code Display Modal -->
+    <div id="reward-code-modal" class="modal">
+        <div class="modal-content">
+            <div class="success-icon">🎁</div>
+            <h2 class="success-title">Your Reward Code</h2>
+            <p id="reward-code-description">Congratulations! Here is your 4-digit reward code:</p>
+            <div class="reward-code-display" id="reward-code-display" style="font-size: 48px; font-weight: bold; letter-spacing: 12px; color: #22C55E; margin: 24px 0; padding: 20px; background: #f0f9ff; border-radius: 12px; text-align: center;">----</div>
+            <p style="color: #666; font-size: 14px; margin-top: 16px;">Use this code in the mobile app to redeem your points!</p>
+            <div class="popup-actions">
+                <button class="btn-primary" onclick="closeRewardCodeModal()">Got it!</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- No Codes Available Notification Modal -->
+    <div id="no-codes-modal" class="modal">
+        <div class="modal-content">
+            <div class="success-icon" style="color: #FF9800; font-size: 64px;">⚠️</div>
+            <h2 class="success-title">No Reward Codes Available</h2>
+            <p style="font-size: 18px; color: #333; margin: 16px 0;">We're sorry, but there are currently no available reward codes at the moment.</p>
+            <p style="color: #666; font-size: 14px; margin: 8px 0;">The admin will add more codes soon. Please try again later.</p>
+            <div class="popup-actions">
+                <button class="btn-primary" onclick="closeNoCodesModal()">Understood</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Points Not Ready Notification Modal -->
+    <div id="points-not-ready-modal" class="modal">
+        <div class="modal-content">
+            <div class="success-icon" style="color: #FF9800; font-size: 64px;">⚠️</div>
+            <h2 class="success-title">Points and Codes Not Ready</h2>
+            <p style="font-size: 18px; color: #333; margin: 16px 0;">Points and Codes are not ready yet for the meantime.</p>
+            <p style="color: #666; font-size: 14px; margin: 8px 0;">The admin needs to configure trash points first. Please try again later.</p>
+            <div class="popup-actions">
+                <button class="btn-primary" onclick="closePointsNotReadyModal()">Understood</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Wrong Trash Message -->
+    <div id="wrong-trash-modal" class="modal">
+        <div class="modal-content">
+            <div class="success-icon">✓</div>
+            <h2 class="success-title">Thank You for Your Feedback</h2>
+            <p>We appreciate your feedback. Would you like to try again?</p>
+            <div class="popup-actions">
+                <button class="btn-primary" onclick="tryAgainQuest()">Throw Again</button>
+                <button class="btn-secondary" onclick="backToHomeFromWrongTrash()">Home</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Feedback Modal -->
+    <div id="feedback-modal" class="modal">
+        <div class="modal-content">
+            <h2>Feedback</h2>
+            <p>Did the machine recognize your trash correctly?</p>
+            <div class="feedback-info" id="feedback-info"></div>
+            <div class="popup-actions">
+                <button class="btn-primary" onclick="submitFeedback(true)">Yes</button>
+                <button class="btn-secondary" onclick="submitFeedback(false)">No</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Admin Reward Management Screen -->
+    <div id="admin-rewards-screen" class="screen">
+        <div class="header">
+            <button class="back-btn" onclick="goHome()">Back</button>
+            <h2>Reward Management</h2>
+            <div style="display: flex; gap: 8px;">
+                <button class="back-btn" onclick="showAddRewardModal()" style="background: #4CAF50; color: white;">+ Add Reward</button>
+                <button class="back-btn" onclick="showAddQuestModal()" style="background: #2196F3; color: white;">+ Add Quest</button>
+                <button class="back-btn" onclick="showTrashPointsScreen()" style="background: #FF9800; color: white;">⚙️ Trash Points</button>
+            </div>
+        </div>
+        <div class="content">
+            <div id="rewards-list" style="padding: 16px;"></div>
+        </div>
+    </div>
+
+    <!-- Trash Points Management Screen -->
+    <div id="trash-points-screen" class="screen">
+        <div class="header">
+            <button class="back-btn" onclick="showAdminRewards()">Back</button>
+            <h2>Trash Points Configuration</h2>
+            <div class="spacer"></div>
+        </div>
+        <div class="content">
+            <div style="padding: 20px; max-width: 800px; margin: 0 auto;">
+                <p style="color: #666; margin-bottom: 24px;">Configure the points awarded for each type of trash thrown in regular trash mode.</p>
+                
+                <div class="card" style="margin-bottom: 20px;">
+                    <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 16px;">
+                        <span style="font-size: 32px;">🧴</span>
+                        <div style="flex: 1;">
+                            <h3 style="margin: 0 0 4px 0; color: #333;">Plastic Bottle</h3>
+                            <p style="margin: 0; color: #666; font-size: 14px;">Points per plastic bottle</p>
+                        </div>
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 12px;">
+                        <input type="number" id="plastic-points" min="0" step="0.1" 
+                               style="flex: 1; padding: 12px; border: 2px solid #ddd; border-radius: 8px; font-size: 18px; font-weight: bold; text-align: center;">
+                        <span style="font-size: 16px; color: #666; font-weight: 600;">points</span>
+                    </div>
+                </div>
+
+                <div class="card" style="margin-bottom: 20px;">
+                    <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 16px;">
+                        <span style="font-size: 32px;">📄</span>
+                        <div style="flex: 1;">
+                            <h3 style="margin: 0 0 4px 0; color: #333;">Paper</h3>
+                            <p style="margin: 0; color: #666; font-size: 14px;">Points per paper item</p>
+                        </div>
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 12px;">
+                        <input type="number" id="paper-points" min="0" step="0.1" 
+                               style="flex: 1; padding: 12px; border: 2px solid #ddd; border-radius: 8px; font-size: 18px; font-weight: bold; text-align: center;">
+                        <span style="font-size: 16px; color: #666; font-weight: 600;">points</span>
+                    </div>
+                </div>
+
+                <div class="card" style="margin-bottom: 20px;">
+                    <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 16px;">
+                        <span style="font-size: 32px;">♻️</span>
+                        <div style="flex: 1;">
+                            <h3 style="margin: 0 0 4px 0; color: #333;">Single Stream</h3>
+                            <p style="margin: 0; color: #666; font-size: 14px;">Points per single stream item</p>
+                        </div>
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 12px;">
+                        <input type="number" id="single-stream-points" min="0" step="0.1" 
+                               style="flex: 1; padding: 12px; border: 2px solid #ddd; border-radius: 8px; font-size: 18px; font-weight: bold; text-align: center;">
+                        <span style="font-size: 16px; color: #666; font-weight: 600;">points</span>
+                    </div>
+                </div>
+
+                <div style="display: flex; gap: 12px; justify-content: flex-end; margin-top: 32px;">
+                    <button class="btn-outline" onclick="showAdminRewards()">Cancel</button>
+                    <button class="btn-primary" onclick="saveTrashPoints()">Save Points</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Add/Edit Reward Modal -->
+    <div id="reward-form-modal" class="modal">
+        <div class="modal-content" style="max-width: 600px;">
+            <h2 id="reward-form-title">Add New Reward</h2>
+            <form id="reward-form">
+                <div style="margin-bottom: 16px;">
+                    <label style="display: block; margin-bottom: 8px; font-weight: bold;">Reward Name:</label>
+                    <input type="text" id="reward-name" required style="width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 8px; font-size: 16px;">
+                </div>
+                <div style="margin-bottom: 16px;">
+                    <label style="display: block; margin-bottom: 8px; font-weight: bold;">Reward Information:</label>
+                    <textarea id="reward-description" required rows="3" style="width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 8px; font-size: 16px; resize: vertical;"></textarea>
+                </div>
+                <div style="margin-bottom: 16px;">
+                    <label style="display: block; margin-bottom: 8px; font-weight: bold;">Reward Points Needed:</label>
+                    <input type="number" id="reward-points" required min="0" style="width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 8px; font-size: 16px;">
+                </div>
+                <div style="margin-bottom: 16px;">
+                    <label style="display: block; margin-bottom: 8px; font-weight: bold;">Redeem Code (Optional):</label>
+                    <input type="text" id="reward-code" style="width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 8px; font-size: 16px; text-transform: uppercase;">
+                </div>
+                <div style="margin-bottom: 16px;">
+                    <label style="display: block; margin-bottom: 8px; font-weight: bold;">Platform:</label>
+                    <select id="reward-platform" required style="width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 8px; font-size: 16px;">
+                        <option value="mobile">Mobile</option>
+                        <option value="kiosk">Kiosk</option>
+                        <option value="both" selected>Both (Mobile & Kiosk)</option>
+                    </select>
+                </div>
+                <div style="display: flex; gap: 12px; justify-content: flex-end; margin-top: 24px;">
+                    <button type="button" class="btn-outline" onclick="closeRewardFormModal()">Cancel</button>
+                    <button type="submit" class="btn-primary">Save</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Add/Edit Quest Modal -->
+    <div id="quest-form-modal" class="modal">
+        <div class="modal-content" style="max-width: 600px;">
+            <h2 id="quest-form-title">Add New Quest</h2>
+            <form id="quest-form">
+                <div style="margin-bottom: 16px;">
+                    <label style="display: block; margin-bottom: 8px; font-weight: bold;">Name of Trash:</label>
+                    <select id="quest-type" required style="width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 8px; font-size: 16px;">
+                        <option value="">Select trash type</option>
+                        <option value="plastic">Plastic</option>
+                        <option value="paper">Paper</option>
+                        <option value="single-stream">Single Stream</option>
+                        <option value="mixed">Mixed</option>
+                    </select>
+                </div>
+                <div style="margin-bottom: 16px;">
+                    <label style="display: block; margin-bottom: 8px; font-weight: bold;">Description:</label>
+                    <textarea id="quest-description" required rows="3" style="width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 8px; font-size: 16px; resize: vertical;" placeholder="e.g., Insert 5 plastic bottles"></textarea>
+                </div>
+                <div style="margin-bottom: 16px;">
+                    <label style="display: block; margin-bottom: 8px; font-weight: bold;">Rewards:</label>
+                    <input type="text" id="quest-reward" required style="width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 8px; font-size: 16px;" placeholder="e.g., 5% Discount Coupon">
+                </div>
+                <div style="display: flex; gap: 12px; justify-content: flex-end; margin-top: 24px;">
+                    <button type="button" class="btn-outline" onclick="closeQuestFormModal()">Cancel</button>
+                    <button type="submit" class="btn-primary">Save</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+
+    <!-- Snackbar -->
+    <div id="snackbar" class="snackbar"></div>
+
+    <script src="app.js"></script>
+</body>
+</html>
+
